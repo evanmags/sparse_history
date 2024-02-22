@@ -68,6 +68,8 @@ def get_user(db: Session, user_id: str):
     user = db.execute(
         list_users_query.filter(UserModel.user_id == user_id)
     ).one_or_none()
+    if not user:
+        return None
     return User(**user._mapping)
 
 
@@ -77,17 +79,49 @@ def get_users(db: Session):
 
 
 def get_user_history(db: Session, user_id: str):
-    users = db.execute(
-        select(UserHistoryLayer).filter(UserModel.user_id == user_id)
-    ).all()
-    return [UserHistoryLayer(**user._mapping) for user in users]
+    user_history = db.query(UserModel).filter(UserModel.user_id == user_id).all()
+    return [
+        UserHistoryLayer(
+            id=layer.id,
+            user_id=layer.user_id,
+            name=layer.name,
+            email=layer.email,
+            company=layer.company,
+            created_at=layer.created_at,
+        )
+        for layer in user_history
+    ]
 
 
 def get_user_history_layer(db: Session, layer_id: str):
+    layer = db.query(UserModel).filter(UserModel.id == layer_id).one_or_none()
+    if not layer:
+        return None
+    return UserHistoryLayer(
+        id=layer.id,
+        user_id=layer.user_id,
+        name=layer.name,
+        email=layer.email,
+        company=layer.company,
+        created_at=layer.created_at,
+    )
+
+
+def get_user_at_history_layer(db: Session, user_id: str, layer_id: str):
+    history_layer_created_at = (
+        select(UserModel.created_at).filter(UserModel.id == layer_id).scalar_subquery()
+    )
+
     user = db.execute(
-        select(UserHistoryLayer).filter(UserModel.id == layer_id)
+        list_users_query.filter(
+            UserModel.user_id == user_id,
+            UserModel.created_at <= history_layer_created_at,
+        )
     ).one_or_none()
-    return UserHistoryLayer(**user._mapping)
+
+    if not user:
+        return None
+    return User(**user._mapping)
 
 
 def update_user(
