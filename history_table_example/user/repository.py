@@ -90,10 +90,10 @@ def build_list_user_historical_state_query(user_id: str):
         func.first_value(subquery.c.company)
         .over(partition_by=subquery.c.company_partition, order_by=subquery.c.created_at)
         .label("company"),
-        subquery.c.created_at,
+        subquery.c.created_at.label("updated_at"),
         func.first_value(subquery.c.created_at)
         .over(order_by=subquery.c.created_at)
-        .label("updated_at"),
+        .label("created_at"),
     )
 
 
