@@ -1,6 +1,7 @@
 services:
   database:
     image: postgres:latest
+    command: [ "postgres", "-c", "log_statement=all" ]
     restart: always
     environment:
       POSTGRES_DB: postgres

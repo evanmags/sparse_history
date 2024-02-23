@@ -8,7 +8,7 @@ from sqlalchemy.sql import func
 from history_table_example.database import BaseModel
 
 
-class UserModel(BaseModel):
+class UserHistoryLayerModel(BaseModel):
     __tablename__ = "users"
     __table_args__ = (Index("idx_user_id", "user_id"),)
 

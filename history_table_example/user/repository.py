@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func, select
 
 from history_table_example.user.domain import User, UserHistoryLayer
-from history_table_example.user.model import UserModel
+from history_table_example.user.model import UserHistoryLayerModel
 
 
 """
@@ -24,22 +24,29 @@ window w_uid as (partition by user_id order by created_at desc)
 order by user_id, created_at asc;
 """
 
-partition = dict(partition_by=UserModel.user_id, order_by=UserModel.created_at.desc())
+partition = dict(
+    partition_by=UserHistoryLayerModel.user_id,
+    order_by=UserHistoryLayerModel.created_at.desc(),
+)
 list_users_query = (
     select(
-        UserModel.user_id.label("id"),
-        func.any_value(UserModel.name).over(**partition).label("name"),
-        func.any_value(UserModel.email).over(**partition).label("email"),
-        func.any_value(UserModel.company).over(**partition).label("company"),
-        UserModel.created_at,
-        func.max(UserModel.created_at).over(**partition).label("updated_at"),
-        func.first_value(UserModel.id)
+        UserHistoryLayerModel.user_id.label("id"),
+        func.any_value(UserHistoryLayerModel.name).over(**partition).label("name"),
+        func.any_value(UserHistoryLayerModel.email).over(**partition).label("email"),
+        func.any_value(UserHistoryLayerModel.company)
+        .over(**partition)
+        .label("company"),
+        UserHistoryLayerModel.created_at,
+        func.max(UserHistoryLayerModel.created_at)
+        .over(**partition)
+        .label("updated_at"),
+        func.first_value(UserHistoryLayerModel.id)
         .over(**partition)
         .cast(TEXT)
         .label("last_edit_id"),
     )
-    .order_by(UserModel.user_id, UserModel.created_at.asc())
-    .distinct(UserModel.user_id)
+    .order_by(UserHistoryLayerModel.user_id, UserHistoryLayerModel.created_at.asc())
+    .distinct(UserHistoryLayerModel.user_id)
 )
 
 
@@ -49,7 +56,7 @@ def create_user(
     email: str | None = None,
     company: str | None = None,
 ):
-    db_user = UserModel(name=name, email=email, company=company)
+    db_user = UserHistoryLayerModel(name=name, email=email, company=company)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -66,7 +73,7 @@ def create_user(
 
 def get_user(db: Session, user_id: str):
     user = db.execute(
-        list_users_query.filter(UserModel.user_id == user_id)
+        list_users_query.filter(UserHistoryLayerModel.user_id == user_id)
     ).one_or_none()
     if not user:
         return None
@@ -79,7 +86,11 @@ def get_users(db: Session):
 
 
 def get_user_history(db: Session, user_id: str):
-    user_history = db.query(UserModel).filter(UserModel.user_id == user_id).all()
+    user_history = (
+        db.query(UserHistoryLayerModel)
+        .filter(UserHistoryLayerModel.user_id == user_id)
+        .all()
+    )
     return [
         UserHistoryLayer(
             id=layer.id,
@@ -94,7 +105,11 @@ def get_user_history(db: Session, user_id: str):
 
 
 def get_user_history_layer(db: Session, layer_id: str):
-    layer = db.query(UserModel).filter(UserModel.id == layer_id).one_or_none()
+    layer = (
+        db.query(UserHistoryLayerModel)
+        .filter(UserHistoryLayerModel.id == layer_id)
+        .one_or_none()
+    )
     if not layer:
         return None
     return UserHistoryLayer(
@@ -109,19 +124,28 @@ def get_user_history_layer(db: Session, layer_id: str):
 
 def get_user_at_history_layer(db: Session, user_id: str, layer_id: str):
     history_layer_created_at = (
-        select(UserModel.created_at).filter(UserModel.id == layer_id).scalar_subquery()
+        select(UserHistoryLayerModel.created_at)
+        .filter(UserHistoryLayerModel.id == layer_id)
+        .scalar_subquery()
     )
 
     user = db.execute(
         list_users_query.filter(
-            UserModel.user_id == user_id,
-            UserModel.created_at <= history_layer_created_at,
+            UserHistoryLayerModel.user_id == user_id,
+            UserHistoryLayerModel.created_at <= history_layer_created_at,
         )
     ).one_or_none()
 
     if not user:
         return None
     return User(**user._mapping)
+
+
+def get_user_at_all_history_layers(db: Session, user_id: str):
+    user = get_user(db, user_id)
+    if not user:
+        return None
+    return get_user_history(db, user_id)
 
 
 def update_user(
@@ -131,7 +155,9 @@ def update_user(
     email: str | None = None,
     company: str | None = None,
 ):
-    db_user = UserModel(user_id=user_id, name=name, email=email, company=company)
+    db_user = UserHistoryLayerModel(
+        user_id=user_id, name=name, email=email, company=company
+    )
     db.add(db_user)
     db.commit()
     return get_user(db, user_id)
