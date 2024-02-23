@@ -9,15 +9,15 @@ class User:
     email: str | None
     company: str | None
     created_at: datetime
-    updated_at: datetime
-    last_edit_id: str
+    revised_at: datetime
+    revision_id: str
 
 
 @dataclass
-class UserHistoryLayer:
+class UserRevision:
     id: str
-    user_id: str
     name: str | None
     email: str | None
     company: str | None
-    created_at: datetime
+    revised_at: datetime
+    revision_id: str

@@ -1,20 +1,21 @@
 from typing import Literal
 
 from sqlalchemy.orm import Session
+from pydantic import TypeAdapter
 from litestar import get, patch, post
 
 from sparse_history.api.dto import (
-    UserHistoryLayerReturn,
+    UserRevisionReturn,
     UserInput,
     UserReturn,
 )
 from sparse_history.user.repository import (
     get_user,
     get_users,
-    get_user_at_all_history_layers,
-    get_user_history_layer,
-    get_user_at_history_layer,
-    get_user_history,
+    get_user_at_all_revisions,
+    get_user_revision,
+    get_user_at_revision,
+    get_user_revisions,
     update_user,
     create_user,
 )
@@ -44,28 +45,35 @@ async def update_user_route(
     return update_user(database, user_id, user.name, user.email, user.company)
 
 
-@get("/users/{user_id:str}/history")
-async def get_user_history_route(
+@get("/users/{user_id:str}/revisions")
+async def get_user_revisions_route(
     user_id: str,
     database: Session,
     display: DisplayType = "sparse",
-) -> list[UserHistoryLayerReturn] | list[UserReturn]:
+) -> list[UserRevisionReturn] | list[UserReturn]:
     match display:
         case "sparse":
-            return get_user_history(database, user_id)
+            revisions = get_user_revisions(database, user_id)
+            model = UserRevisionReturn
         case "dense":
-            return get_user_at_all_history_layers(database, user_id)
+            revisions = get_user_at_all_revisions(database, user_id)
+            model = UserReturn
+
+    return TypeAdapter(list[model]).validate_python(revisions, from_attributes=True)
 
 
-@get("/users/{user_id:str}/history/{layer_id:str}")
-async def get_user_history_layer_route(
+@get("/users/{user_id:str}/revisions/{revision_id:str}")
+async def get_user_revision_route(
     user_id: str,
-    layer_id: str,
+    revision_id: str,
     database: Session,
     display: DisplayType = "sparse",
-) -> UserHistoryLayerReturn | UserReturn:
+) -> UserRevisionReturn | UserReturn:
     match display:
         case "sparse":
-            return get_user_history_layer(database, layer_id)
+            revisions = get_user_revision(database, user_id, revision_id)
+            model = UserRevisionReturn
         case "dense":
-            return get_user_at_history_layer(database, user_id, layer_id)
+            revisions = get_user_at_revision(database, user_id, revision_id)
+            model = UserReturn
+    return model.model_validate(revisions, from_attributes=True)

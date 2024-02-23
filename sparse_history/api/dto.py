@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 
 
 class UserInput(BaseModel):
@@ -14,14 +14,14 @@ class UserReturn(BaseModel):
     email: str | None
     company: str | None
     created_at: datetime
-    updated_at: datetime
-    last_edit_id: str
+    revised_at: datetime
+    revision_id: str
 
 
-class UserHistoryLayerReturn(BaseModel):
+class UserRevisionReturn(BaseModel):
     id: str
-    user_id: str
     name: str | None
     email: str | None
     company: str | None
-    created_at: datetime
+    revised_at: datetime
+    revision_id: str

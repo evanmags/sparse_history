@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
-from sparse_history.user.domain import User, UserHistoryLayer
-from sparse_history.user.model import UserHistoryLayerModel
+from sparse_history.user.domain import User, UserRevision
+from sparse_history.user.model import UserRevisionModel
 from sparse_history.user.repository.queries import (
     build_list_user_historical_state_query,
     build_list_users_query,
@@ -15,7 +15,7 @@ def create_user(
     email: str | None = None,
     company: str | None = None,
 ):
-    db_user = UserHistoryLayerModel(name=name, email=email, company=company)
+    db_user = UserRevisionModel(name=name, email=email, company=company)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -24,15 +24,15 @@ def create_user(
         name=db_user.name,
         email=db_user.email,
         company=db_user.company,
-        created_at=db_user.created_at,
-        updated_at=db_user.created_at,
-        last_edit_id=db_user.id,
+        created_at=db_user.revised_at,
+        revised_at=db_user.revised_at,
+        revision_id=db_user.revision_id,
     )
 
 
 def get_user(db: Session, user_id: str):
     user = db.execute(
-        build_list_users_query().filter(UserHistoryLayerModel.user_id == user_id)
+        build_list_users_query().filter(UserRevisionModel.user_id == user_id)
     ).one_or_none()
     if not user:
         return None
@@ -51,7 +51,7 @@ def update_user(
     email: str | None = None,
     company: str | None = None,
 ):
-    db_user = UserHistoryLayerModel(
+    db_user = UserRevisionModel(
         user_id=user_id, name=name, email=email, company=company
     )
     db.add(db_user)
@@ -59,66 +59,66 @@ def update_user(
     return get_user(db, user_id)
 
 
-def get_user_history(db: Session, user_id: str):
-    user_history = (
-        db.query(UserHistoryLayerModel)
-        .filter(UserHistoryLayerModel.user_id == user_id)
-        .all()
+def get_user_revisions(db: Session, user_id: str):
+    user_revisions = (
+        db.query(UserRevisionModel).filter(UserRevisionModel.user_id == user_id).all()
     )
     return [
-        UserHistoryLayer(
-            id=layer.id,
-            user_id=layer.user_id,
-            name=layer.name,
-            email=layer.email,
-            company=layer.company,
-            created_at=layer.created_at,
+        UserRevision(
+            id=revision.revision_id,
+            user_id=revision.user_id,
+            name=revision.name,
+            email=revision.email,
+            company=revision.company,
+            created_at=revision.revised_at,
         )
-        for layer in user_history
+        for revision in user_revisions
     ]
 
 
-def get_user_history_layer(db: Session, user_id: str, layer_id: str):
-    layer = (
-        db.query(UserHistoryLayerModel)
+def get_user_revision(db: Session, user_id: str, revision_id: str):
+    revision = (
+        db.query(UserRevisionModel)
         .filter(
-            UserHistoryLayerModel.id == layer_id,
-            UserHistoryLayerModel.user_id == user_id,
+            UserRevisionModel.revision_id == revision_id,
+            UserRevisionModel.user_id == user_id,
         )
         .one_or_none()
     )
-    if not layer:
+    print(revision)
+    if not revision:
         return None
-    return UserHistoryLayer(
-        id=layer.id,
-        user_id=layer.user_id,
-        name=layer.name,
-        email=layer.email,
-        company=layer.company,
-        created_at=layer.created_at,
+    return UserRevision(
+        id=revision.user_id,
+        name=revision.name,
+        email=revision.email,
+        company=revision.company,
+        revised_at=revision.revised_at,
+        revision_id=revision.revision_id,
     )
 
 
-def get_user_at_history_layer(db: Session, user_id: str, layer_id: str):
-    history_layer_created_at = (
-        select(UserHistoryLayerModel.created_at)
-        .filter(UserHistoryLayerModel.id == layer_id)
+def get_user_at_revision(db: Session, user_id: str, revision_id: str):
+    revision_created_at = (
+        select(UserRevisionModel.revised_at)
+        .filter(UserRevisionModel.revision_id == revision_id)
         .scalar_subquery()
     )
 
     user = db.execute(
         build_list_users_query().filter(
-            UserHistoryLayerModel.user_id == user_id,
-            UserHistoryLayerModel.created_at <= history_layer_created_at,
+            UserRevisionModel.user_id == user_id,
+            UserRevisionModel.revised_at <= revision_created_at,
         )
     ).one_or_none()
 
     if not user:
         return None
+    print(user._mapping)
     return User(**user._mapping)
 
 
-def get_user_at_all_history_layers(db: Session, user_id: str):
+def get_user_at_all_revisions(db: Session, user_id: str):
     query = build_list_user_historical_state_query(user_id)
-    layers = db.execute(query).all()
-    return [User(**layer._mapping) for layer in layers]
+    revisions = db.execute(query).all()
+    return [User(**revision._mapping) for revision in revisions]

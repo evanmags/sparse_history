@@ -1,7 +1,7 @@
 from sqlalchemy import TEXT
 from sqlalchemy.sql.expression import func, select, case
 
-from sparse_history.user.model import UserHistoryLayerModel
+from sparse_history.user.model import UserRevisionModel
 
 
 def build_list_users_query():
@@ -15,51 +15,51 @@ def build_list_users_query():
         , any_value(name) over(w_uid) name
         , any_value(email) over(w_uid) email
         , any_value(company) over(w_uid) company
-        , created_at
-        , max(created_at) over(w_uid) updated_at
-        , first_value(id) over(w_uid) last_edit_id
+        , revised_at
+        , max(revised_at) over(w_uid) revised_at
+        , first_value(id) over(w_uid) revision_id
     from users
-    window w_uid as (partition by user_id order by created_at desc)
-    order by user_id, created_at asc;
+    window w_uid as (partition by user_id order by revised_at desc)
+    order by user_id, revised_at asc;
     """
 
     list_users_query_partition = dict(
-        partition_by=UserHistoryLayerModel.user_id,
-        order_by=UserHistoryLayerModel.created_at.desc(),
+        partition_by=UserRevisionModel.user_id,
+        order_by=UserRevisionModel.revised_at.desc(),
     )
     return (
         select(
-            UserHistoryLayerModel.user_id.label("id"),
+            UserRevisionModel.user_id.label("id"),
             (
-                func.any_value(UserHistoryLayerModel.name)
+                func.any_value(UserRevisionModel.name)
                 .over(**list_users_query_partition)
                 .label("name")
             ),
             (
-                func.any_value(UserHistoryLayerModel.email)
+                func.any_value(UserRevisionModel.email)
                 .over(**list_users_query_partition)
                 .label("email")
             ),
             (
-                func.any_value(UserHistoryLayerModel.company)
+                func.any_value(UserRevisionModel.company)
                 .over(**list_users_query_partition)
                 .label("company")
             ),
-            UserHistoryLayerModel.created_at,
+            UserRevisionModel.revised_at.label("created_at"),
             (
-                func.max(UserHistoryLayerModel.created_at)
+                func.first_value(UserRevisionModel.revised_at)
                 .over(**list_users_query_partition)
-                .label("updated_at")
+                .label("revised_at")
             ),
             (
-                func.first_value(UserHistoryLayerModel.id)
+                func.first_value(UserRevisionModel.revision_id)
                 .over(**list_users_query_partition)
                 .cast(TEXT)
-                .label("last_edit_id")
+                .label("revision_id")
             ),
         )
-        .order_by(UserHistoryLayerModel.user_id, UserHistoryLayerModel.created_at.asc())
-        .distinct(UserHistoryLayerModel.user_id)
+        .order_by(UserRevisionModel.user_id, UserRevisionModel.revised_at.asc())
+        .distinct(UserRevisionModel.user_id)
     )
 
 
@@ -69,50 +69,50 @@ def build_list_user_historical_state_query(user_id: str):
     select
         id
         , user_id
-        , first_value(name) over(partition by name_partition order by created_at asc)
-        , first_value(email) over(partition by email_partition order by created_at asc)
-        , first_value(company) over(partition by company_partition order by created_at asc)
-        , created_at
+        , first_value(name) over(partition by name_partition order by revised_at asc)
+        , first_value(email) over(partition by email_partition order by revised_at asc)
+        , first_value(company) over(partition by company_partition order by revised_at asc)
+        , revised_at
     from (
         select
             id
             , user_id
             , name
-            , sum(case when name is null then 0 else 1 end) over(order by created_at asc) as name_partition
+            , sum(case when name is null then 0 else 1 end) over(order by revised_at asc) as name_partition
             , email
-            , sum(case when email is null then 0 else 1 end) over(order by created_at asc) as email_partition
+            , sum(case when email is null then 0 else 1 end) over(order by revised_at asc) as email_partition
             , company
-            , sum(case when company is null then 0 else 1 end) over(order by created_at asc) as company_partition
-            , created_at
+            , sum(case when company is null then 0 else 1 end) over(order by revised_at asc) as company_partition
+            , revised_at
         from users
         where user_id='<user_id>'
     )
     """
     subquery = (
         select(
-            UserHistoryLayerModel.id,
-            UserHistoryLayerModel.user_id,
-            UserHistoryLayerModel.name,
+            UserRevisionModel.revision_id,
+            UserRevisionModel.user_id,
+            UserRevisionModel.name,
             (
-                func.sum(case((UserHistoryLayerModel.name.is_(None), 0), else_=1))
-                .over(order_by=UserHistoryLayerModel.created_at)
+                func.sum(case((UserRevisionModel.name.is_(None), 0), else_=1))
+                .over(order_by=UserRevisionModel.revised_at)
                 .label("name_partition")
             ),
-            UserHistoryLayerModel.email,
+            UserRevisionModel.email,
             (
-                func.sum(case((UserHistoryLayerModel.email.is_(None), 0), else_=1))
-                .over(order_by=UserHistoryLayerModel.created_at)
+                func.sum(case((UserRevisionModel.email.is_(None), 0), else_=1))
+                .over(order_by=UserRevisionModel.revised_at)
                 .label("email_partition")
             ),
-            UserHistoryLayerModel.company,
+            UserRevisionModel.company,
             (
-                func.sum(case((UserHistoryLayerModel.company.is_(None), 0), else_=1))
-                .over(order_by=UserHistoryLayerModel.created_at)
+                func.sum(case((UserRevisionModel.company.is_(None), 0), else_=1))
+                .over(order_by=UserRevisionModel.revised_at)
                 .label("company_partition")
             ),
-            UserHistoryLayerModel.created_at,
+            UserRevisionModel.revised_at,
         )
-        .filter(UserHistoryLayerModel.user_id == user_id)
+        .filter(UserRevisionModel.user_id == user_id)
         .subquery("subquery")
     )
 
@@ -122,14 +122,14 @@ def build_list_user_historical_state_query(user_id: str):
         (
             func.first_value(subquery.c.name)
             .over(
-                partition_by=subquery.c.name_partition, order_by=subquery.c.created_at
+                partition_by=subquery.c.name_partition, order_by=subquery.c.revised_at
             )
             .label("name")
         ),
         (
             func.first_value(subquery.c.email)
             .over(
-                partition_by=subquery.c.email_partition, order_by=subquery.c.created_at
+                partition_by=subquery.c.email_partition, order_by=subquery.c.revised_at
             )
             .label("email")
         ),
@@ -137,15 +137,15 @@ def build_list_user_historical_state_query(user_id: str):
             func.first_value(subquery.c.company)
             .over(
                 partition_by=subquery.c.company_partition,
-                order_by=subquery.c.created_at,
+                order_by=subquery.c.revised_at,
             )
             .label("company")
         ),
-        subquery.c.created_at.label("updated_at"),
+        subquery.c.revised_at.label("revised_at"),
         (
-            func.first_value(subquery.c.created_at)
-            .over(order_by=subquery.c.created_at)
+            func.first_value(subquery.c.revised_at)
+            .over(order_by=subquery.c.revised_at)
             .label("created_at")
         ),
-        subquery.c.id.label("last_edit_id"),
+        subquery.c.revision_id.label("revision_id"),
     )

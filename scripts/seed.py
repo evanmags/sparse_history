@@ -6,7 +6,7 @@ from sparse_history.database import SessionLocal
 
 def seed_users():
     """
-    creates 100,000 user history layers broken down to 1000 users with 100 updates each
+    creates 100,000 user history revisions broken down to 1000 users with 100 updates each
     """
     f = Faker()
     with SessionLocal() as session:

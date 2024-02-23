@@ -4,8 +4,8 @@ from litestar.di import Provide
 
 from sparse_history.database import SessionLocal
 from sparse_history.api.routes import (
-    get_user_history_layer_route,
-    get_user_history_route,
+    get_user_revision_route,
+    get_user_revisions_route,
     get_user_route,
     get_users_route,
     update_user_route,
@@ -25,8 +25,8 @@ app = Litestar(
         get_user_route,
         get_users_route,
         update_user_route,
-        get_user_history_route,
-        get_user_history_layer_route,
+        get_user_revisions_route,
+        get_user_revision_route,
     ],
     logging_config=LoggingConfig(
         root={"level": logging.DEBUG, "handlers": ["console"]},
