@@ -1,7 +1,7 @@
 from sqlalchemy import TEXT
 from sqlalchemy.sql.expression import func, select, case
 
-from history_table_example.user.model import UserHistoryLayerModel
+from sparse_history.user.model import UserHistoryLayerModel
 
 
 def build_list_users_query():

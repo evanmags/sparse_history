@@ -2,8 +2,8 @@ import logging
 from litestar import Litestar
 from litestar.di import Provide
 
-from history_table_example.database import SessionLocal
-from history_table_example.api.routes import (
+from sparse_history.database import SessionLocal
+from sparse_history.api.routes import (
     get_user_history_layer_route,
     get_user_history_route,
     get_user_route,

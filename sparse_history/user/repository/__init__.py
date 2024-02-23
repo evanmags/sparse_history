@@ -1,6 +1,6 @@
 # ruff: noqa: F401
 
-from history_table_example.user.repository.handlers import (
+from sparse_history.user.repository.handlers import (
     create_user,
     get_user,
     get_users,

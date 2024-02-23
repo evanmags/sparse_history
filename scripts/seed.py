@@ -1,7 +1,7 @@
 from faker import Faker
 
-from history_table_example.user.repository import create_user, update_user
-from history_table_example.database import SessionLocal
+from sparse_history.user.repository import create_user, update_user
+from sparse_history.database import SessionLocal
 
 
 def seed_users():

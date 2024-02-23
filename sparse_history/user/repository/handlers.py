@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
-from history_table_example.user.domain import User, UserHistoryLayer
-from history_table_example.user.model import UserHistoryLayerModel
-from history_table_example.user.repository.queries import (
+from sparse_history.user.domain import User, UserHistoryLayer
+from sparse_history.user.model import UserHistoryLayerModel
+from sparse_history.user.repository.queries import (
     build_list_user_historical_state_query,
     build_list_users_query,
 )

@@ -3,12 +3,12 @@ from typing import Literal
 from sqlalchemy.orm import Session
 from litestar import get, patch, post
 
-from history_table_example.api.dto import (
+from sparse_history.api.dto import (
     UserHistoryLayerReturn,
     UserInput,
     UserReturn,
 )
-from history_table_example.user.repository import (
+from sparse_history.user.repository import (
     get_user,
     get_users,
     get_user_at_all_history_layers,

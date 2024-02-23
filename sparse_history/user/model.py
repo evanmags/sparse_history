@@ -5,7 +5,7 @@ from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
-from history_table_example.database import BaseModel
+from sparse_history.database import BaseModel
 
 
 class UserHistoryLayerModel(BaseModel):
