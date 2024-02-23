@@ -78,10 +78,13 @@ def get_user_history(db: Session, user_id: str):
     ]
 
 
-def get_user_history_layer(db: Session, layer_id: str):
+def get_user_history_layer(db: Session, user_id: str, layer_id: str):
     layer = (
         db.query(UserHistoryLayerModel)
-        .filter(UserHistoryLayerModel.id == layer_id)
+        .filter(
+            UserHistoryLayerModel.id == layer_id,
+            UserHistoryLayerModel.user_id == user_id,
+        )
         .one_or_none()
     )
     if not layer:

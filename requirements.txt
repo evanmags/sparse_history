@@ -1,2 +1,6 @@
-sqlalchemy
+faker
+litestar
 psycopg2-binary # postgres driver
+pydantic
+sqlalchemy
+uvicorn

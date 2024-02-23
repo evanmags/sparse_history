@@ -8,4 +8,4 @@ seed-db: create-db
 	@python scripts/seed.py
 
 run:
-	@python history_table_example/main.py
+	litestar --app history_table_example.api.app:app run --reload --debug
