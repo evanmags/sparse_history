@@ -1,6 +1,6 @@
 from sqlalchemy import TEXT
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import func, select
+from sqlalchemy.sql.expression import func, select, case
 
 from history_table_example.user.domain import User, UserHistoryLayer
 from history_table_example.user.model import UserHistoryLayerModel
@@ -24,30 +24,77 @@ window w_uid as (partition by user_id order by created_at desc)
 order by user_id, created_at asc;
 """
 
-partition = dict(
+list_users_query_partition = dict(
     partition_by=UserHistoryLayerModel.user_id,
     order_by=UserHistoryLayerModel.created_at.desc(),
 )
 list_users_query = (
     select(
         UserHistoryLayerModel.user_id.label("id"),
-        func.any_value(UserHistoryLayerModel.name).over(**partition).label("name"),
-        func.any_value(UserHistoryLayerModel.email).over(**partition).label("email"),
+        func.any_value(UserHistoryLayerModel.name)
+        .over(**list_users_query_partition)
+        .label("name"),
+        func.any_value(UserHistoryLayerModel.email)
+        .over(**list_users_query_partition)
+        .label("email"),
         func.any_value(UserHistoryLayerModel.company)
-        .over(**partition)
+        .over(**list_users_query_partition)
         .label("company"),
         UserHistoryLayerModel.created_at,
         func.max(UserHistoryLayerModel.created_at)
-        .over(**partition)
+        .over(**list_users_query_partition)
         .label("updated_at"),
         func.first_value(UserHistoryLayerModel.id)
-        .over(**partition)
+        .over(**list_users_query_partition)
         .cast(TEXT)
         .label("last_edit_id"),
     )
     .order_by(UserHistoryLayerModel.user_id, UserHistoryLayerModel.created_at.asc())
     .distinct(UserHistoryLayerModel.user_id)
 )
+
+
+def build_list_user_historical_state_query(user_id: str):
+    subquery = (
+        select(
+            UserHistoryLayerModel.id,
+            UserHistoryLayerModel.user_id,
+            UserHistoryLayerModel.name,
+            func.sum(case((UserHistoryLayerModel.name.is_(None), 0), else_=1))
+            .over(order_by=UserHistoryLayerModel.created_at)
+            .label("name_partition"),
+            UserHistoryLayerModel.email,
+            func.sum(case((UserHistoryLayerModel.email.is_(None), 0), else_=1))
+            .over(order_by=UserHistoryLayerModel.created_at)
+            .label("email_partition"),
+            UserHistoryLayerModel.company,
+            func.sum(case((UserHistoryLayerModel.company.is_(None), 0), else_=1))
+            .over(order_by=UserHistoryLayerModel.created_at)
+            .label("company_partition"),
+            UserHistoryLayerModel.created_at,
+        )
+        .filter(UserHistoryLayerModel.user_id == user_id)
+        .subquery("subquery")
+    )
+
+    # Main query
+    return select(
+        subquery.c.user_id.label("id"),
+        subquery.c.id.label("last_edit_id"),
+        func.first_value(subquery.c.name)
+        .over(partition_by=subquery.c.name_partition, order_by=subquery.c.created_at)
+        .label("name"),
+        func.first_value(subquery.c.email)
+        .over(partition_by=subquery.c.email_partition, order_by=subquery.c.created_at)
+        .label("email"),
+        func.first_value(subquery.c.company)
+        .over(partition_by=subquery.c.company_partition, order_by=subquery.c.created_at)
+        .label("company"),
+        subquery.c.created_at,
+        func.first_value(subquery.c.created_at)
+        .over(order_by=subquery.c.created_at)
+        .label("updated_at"),
+    )
 
 
 def create_user(
@@ -142,10 +189,9 @@ def get_user_at_history_layer(db: Session, user_id: str, layer_id: str):
 
 
 def get_user_at_all_history_layers(db: Session, user_id: str):
-    user = get_user(db, user_id)
-    if not user:
-        return None
-    return get_user_history(db, user_id)
+    query = build_list_user_historical_state_query(user_id)
+    layers = db.execute(query).all()
+    return [User(**layer._mapping) for layer in layers]
 
 
 def update_user(

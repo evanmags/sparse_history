@@ -7,12 +7,12 @@ from history_table_example.user.repository import (
     get_user,
     get_user_history_layer,
     get_user_at_history_layer,
+    get_user_at_all_history_layers,
 )
 
 with SessionLocal() as session:
-    user = get_user(session, "00366936-7861-4e32-b368-adec69aedf63")
-    pprint(user)
-    user_at_layer = get_user_at_history_layer(
-        session, user.id, "99ee9626-65b5-40ee-93f1-690b816c2474"
+    user_layers = get_user_at_all_history_layers(
+        session, "00366936-7861-4e32-b368-adec69aedf63"
     )
-    pprint(user_at_layer)
+    for user_at_layer in user_layers:
+        pprint(user_at_layer)
