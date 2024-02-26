@@ -4,6 +4,7 @@ from sqlalchemy.sql.expression import select
 from sparse_history.user.domain import User, UserRevision
 from sparse_history.user.model import UserRevisionModel
 from sparse_history.user.repository.queries import (
+    build_get_user_query,
     build_list_user_historical_state_query,
     build_list_users_query,
 )
@@ -31,9 +32,7 @@ def create_user(
 
 
 def get_user(db: Session, user_id: str):
-    user = db.execute(
-        build_list_users_query().filter(UserRevisionModel.user_id == user_id)
-    ).one_or_none()
+    user = db.execute(build_get_user_query(user_id)).one_or_none()
     if not user:
         return None
     return User(**user._mapping)
@@ -65,12 +64,12 @@ def get_user_revisions(db: Session, user_id: str):
     )
     return [
         UserRevision(
-            id=revision.revision_id,
-            user_id=revision.user_id,
+            id=revision.user_id,
             name=revision.name,
             email=revision.email,
             company=revision.company,
-            created_at=revision.revised_at,
+            revised_at=revision.revised_at,
+            revision_id=revision.revision_id,
         )
         for revision in user_revisions
     ]
@@ -99,18 +98,7 @@ def get_user_revision(db: Session, user_id: str, revision_id: str):
 
 
 def get_user_at_revision(db: Session, user_id: str, revision_id: str):
-    revision_created_at = (
-        select(UserRevisionModel.revised_at)
-        .filter(UserRevisionModel.revision_id == revision_id)
-        .scalar_subquery()
-    )
-
-    user = db.execute(
-        build_list_users_query().filter(
-            UserRevisionModel.user_id == user_id,
-            UserRevisionModel.revised_at <= revision_created_at,
-        )
-    ).one_or_none()
+    user = db.execute(build_get_user_query(user_id, revision_id)).one_or_none()
 
     if not user:
         return None

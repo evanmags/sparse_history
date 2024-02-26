@@ -149,3 +149,33 @@ def build_list_user_historical_state_query(user_id: str):
         ),
         subquery.c.revision_id.label("revision_id"),
     )
+
+
+def build_get_user_query(user_id: str, revision_id: str | None = None):
+    q = (
+        select(
+            UserRevisionModel.user_id.label("id"),
+            (
+                func.any_value(UserRevisionModel.name)
+                .over(order_by=UserRevisionModel.revised_at.desc())
+                .label("name")
+            ),
+            (func.any_value(UserRevisionModel.email).over().label("email")),
+            (func.any_value(UserRevisionModel.company).over().label("company")),
+            UserRevisionModel.revised_at.label("created_at"),
+            (func.first_value(UserRevisionModel.revised_at).over().label("revised_at")),
+            UserRevisionModel.revision_id,
+        )
+        .filter(UserRevisionModel.user_id == user_id)
+        .order_by(UserRevisionModel.revised_at.asc())
+        .limit(1)
+    )
+
+    if revision_id:
+        q.where(
+            UserRevisionModel.revised_at
+            <= select(UserRevisionModel.revised_at)
+            .where(UserRevisionModel.revision_id == revision_id)
+            .subquery()
+        )
+    return q
