@@ -1,0 +1,39 @@
+{
+  "name": "postgres_history_tables",
+  "version": "1.0.0",
+  "main": "./dist/sparse_history/graphql/index.js",
+  "repository": "https://github.com/evanmags/sparse_history.git",
+  "author": "evanmags <magnussen.evan@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@apollo/datasource-rest": "^6.2.2",
+    "@apollo/server": "^4.10.0",
+    "@graphql-codegen/typescript": "^4.0.6",
+    "@graphql-codegen/typescript-resolvers": "^4.0.6",
+    "@graphql-tools/graphql-file-loader": "^8.0.1",
+    "@graphql-tools/load": "^8.0.2",
+    "@graphql-tools/schema": "^10.0.3",
+    "graphql": "^16.8.1"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.2",
+    "@types/node": "^20.11.24",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier . --write",
+    "codegen": "graphql-codegen",
+    "compile": "tsc",
+    "prestart": "yarn compile && yarn codegen",
+    "start": "node ./dist/sparse_history/graphql/index.js"
+  }
+}

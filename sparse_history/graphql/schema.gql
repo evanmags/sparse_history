@@ -1,0 +1,37 @@
+type Query {
+  users: [User!]!
+  user(id: ID): User
+  userRevisions(id: ID, display: DisplayType = SPARSE): [RevisionReturn!]
+  userRevision(
+    userId: ID
+    revisionId: ID
+    display: DisplayType = SPARSE
+  ): RevisionReturn
+}
+
+scalar Date
+union RevisionReturn = User | UserRevision
+
+enum DisplayType {
+  SPARSE
+  DENSE
+}
+
+type User {
+  id: ID
+  name: String
+  email: String
+  company: String
+  created_at: Date!
+  revised_at: Date!
+  revision_id: ID
+}
+
+type UserRevision {
+  id: ID
+  name: String
+  email: String
+  company: String
+  revised_at: Date!
+  revision_id: ID
+}
