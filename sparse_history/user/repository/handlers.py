@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import select
 
 from sparse_history.user.domain import User, UserRevision
 from sparse_history.user.model import UserRevisionModel

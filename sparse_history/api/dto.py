@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, AliasChoices
+from pydantic import BaseModel
 
 
 class UserInput(BaseModel):
